@@ -9,7 +9,7 @@
  * by Scott Travis <scott.w.travis@gmail.com>
  * http://github.com/swt83/laravel-date
  *
- * 
+ *
  * @package     jDate
  * @author      Sallar Kaboli <sallar.kaboli@gmail.com>
  * @link        http://
@@ -27,14 +27,15 @@ class jDate
 		'time'     => '%H:%M:%S',
 	);
 
-	public static function forge($str = null)
+	public static function forge($str = null,$exploadby = '-',$inputtype=null,$mod='')
 	{
 		$class = __CLASS__;
-		return new $class($str);
+		return new $class($str,$exploadby,$inputtype,$mod='');
 	}
 
-	public function __construct($str = null)
+	public function __construct($str = null,$exploadby = '-',$inputtype=null,$mod='')
 	{
+
 		if ($str === null){
 			$this->time = time();
 		}
@@ -42,11 +43,27 @@ class jDate
 		{
 			if (is_numeric($str)){
 				$this->time = $str;
+			}elseif($inputtype=='jalali')
+			{
+				//Added By Mahdi Mirhendi , 0913559139 , Shamsi to Miladi
+				$str =explode($exploadby,$str);
+				$str= $this->jalali_to_gregorian($str[0] ,$str[1]  ,$str[2],$mod);
+				strlen($str[1])==1 ? $str[1]='0'.$str[1] : '';
+				strlen($str[2])==1 ? $str[2]='0'.$str[2] : '';
+				$str=implode('-',$str);
+				$time = strtotime($str);
+
+				if (!$time){
+					$this->time = false;
+				}
+				else{
+					$this->time = $time;
+				}
 			}
 			else
 			{
 				$time = strtotime($str);
-
+				//add shamsi
 				if (!$time){
 					$this->time = false;
 				}
@@ -77,28 +94,6 @@ class jDate
 			return false;
 		}
 	}
-
-	public function reforge($str)
-	{
-		if ($this->time !== false)
-		{
-			// amend the time
-			$time = strtotime($str, $this->time);
-
-			// if conversion fails...
-			if (!$time){
-				// set time as false
-				$this->time = false;
-			}
-			else{
-				// accept time value
-				$this->time = $time;
-			}
-		}
-
-		return $this;
-	}
-
 	public function ago()
 	{
 		$now = time();
@@ -137,4 +132,59 @@ class jDate
 	{
 		return $this->ago();
 	}
+
+	public function jalali_to_gregorian($jy,$jm,$jd,$mod=''){
+		list($jy,$jm,$jd)=explode('_',$this->tr_num($jy.'_'.$jm.'_'.$jd));/* <= Extra :اين سطر ، جزء تابع اصلي نيست */
+	 if($jy > 979){
+	  $gy=1600;
+	  $jy-=979;
+	 }else{
+	  $gy=621;
+	 }
+	 $days=(365*$jy) +(((int)($jy/33))*8) +((int)((($jy%33)+3)/4)) +78 +$jd +(($jm<7)?($jm-1)*31:(($jm-7)*30)+186);
+	 $gy+=400*((int)($days/146097));
+	 $days%=146097;
+	 if($days > 36524){
+	  $gy+=100*((int)(--$days/36524));
+	  $days%=36524;
+	  if($days >= 365)$days++;
+	 }
+	 $gy+=4*((int)(($days)/1461));
+	 $days%=1461;
+	 $gy+=(int)(($days-1)/365);
+	 if($days > 365)$days=($days-1)%365;
+	 $gd=$days+1;
+	 foreach(array(0,31,((($gy%4==0) and ($gy%100!=0)) or ($gy%400==0))?29:28 ,31,30,31,30,31,31,30,31,30,31) as $gm=>$v){
+	  if($gd <= $v)break;
+	  $gd-=$v;
+	 }
+	 return($mod==='')?array($gy,$gm,$gd):$gy .$mod .$gm .$mod .$gd;
+	}
+	function tr_num($str,$mod='en',$mf='٫'){
+	 $num_a=array('0','1','2','3','4','5','6','7','8','9','.');
+	 $key_a=array('۰','۱','۲','۳','۴','۵','۶','۷','۸','۹',$mf);
+	 return($mod=='fa')?str_replace($num_a,$key_a,$str):str_replace($key_a,$num_a,$str);
+	}
+	public function reforge($str)
+	{
+		if ($this->time !== false)
+		{
+			// amend the time
+			$time = strtotime($str, $this->time);
+
+			// if conversion fails...
+			if (!$time){
+				// set time as false
+				$this->time = false;
+			}
+			else{
+				// accept time value
+				$this->time = $time;
+			}
+		}
+
+		return $this;
+	}
+
+
 }
